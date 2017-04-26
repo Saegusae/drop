@@ -26,10 +26,10 @@ module.exports = function Drop(dispatch) {
     });
 
     dispatch.hook('S_CREATURE_CHANGE_HP', 2, (event) => {
-
-        currHp = event.curHp;
-        maxHp = event.maxHp;
-
+        if (event.target.toString() == cid.toString()) {
+            currHp = event.curHp;
+            maxHp = event.maxHp;
+        }
     });
 
     dispatch.hook('S_SPAWN_ME', 1, (event) => {});
@@ -44,14 +44,14 @@ module.exports = function Drop(dispatch) {
             let amount = parseInt(event.message.replace(/<\/?[^<>]*>/gi, '').split(' ')[1]) || null;
 
             if (amount && currHp && maxHp) {
-                let amountToDrop = (currHp - (maxHp / amount)) / maxHp;
+                let amountToDrop = (currHp * 100 / maxHp) - amount;
 
-                if (amount < 100 && amount > 0) {
+                if (amount < 100 && amount > 0 && amountToDrop > 0) {
 
-                    if (castPassive)
-                        fallDistance = 400 + ((amountToDrop * 2) * 10);
-                    else {
+                    if (!castPassive)
                         fallDistance = 400 + (amountToDrop * 10);
+                    else {
+                        fallDistance = 400 + (amountToDrop * 20);
                     }
 
                     location.z1 += fallDistance;
@@ -66,6 +66,7 @@ module.exports = function Drop(dispatch) {
                         alive: 1,
                         unk: 0
                     });
+
                 }
             }
 
