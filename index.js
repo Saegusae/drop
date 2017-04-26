@@ -58,7 +58,7 @@ module.exports = function Drop(dispatch) {
 
                     dispatch.toServer('C_PLAYER_LOCATION', 1, location);
 
-                    dispatch.toClient(S_SPAWN_ME, 1, {
+                    dispatch.toClient('S_SPAWN_ME', 1, {
                         target: cid,
                         x: location.x1,
                         y: location.y1,
