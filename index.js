@@ -47,7 +47,7 @@ module.exports = function Drop(dispatch) {
 					id: cid,
 					x: location.x1,
 					y: location.y1,
-					z: location.z1
+					z: location.z1,
 					w: location.w
 				})
 			}
