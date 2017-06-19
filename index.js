@@ -31,7 +31,7 @@ module.exports = function Drop(dispatch) {
 
 	dispatch.hook('C_PLAYER_LOCATION', 1, event => { location = event })
 
-	command.add('drop' amount => {
+	command.add('drop', amount => {
 		amount = Number(amount)
 
 		if(amount && curHp && maxHp) {
