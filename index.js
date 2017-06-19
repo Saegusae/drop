@@ -1,76 +1,56 @@
+const Command = require('command')
+
 module.exports = function Drop(dispatch) {
+	const command = Command(dispatch)
 
-    let cid,
-        model,
-        name,
-        location,
-        zone,
-        currHp,
-        maxHp;
+	let cid,
+		model,
+		location,
+		curHp,
+		maxHp,
+		castPassive = false,
+		fallDistance = 0
 
-    let castPassive = false;
-    let fallDistance = 0;
+	dispatch.hook('S_LOGIN', 2, event => {
+		({cid, model} = event)
 
-    dispatch.hook('S_LOGIN', 2, (event) => {
-        ({
-            cid,
-            model,
-            name
-        } = event);
+		castPassive = ((model - 100) / 200 % 50) === 3
+	})
 
-        castPassive = ((model - 100) / 200 % 50) === 3;
-    });
+	dispatch.hook('S_PLAYER_STAT_UPDATE', 4, event => {
+		curHp = event.curHp
+		maxHp = event.maxHp
+	})
 
-    dispatch.hook('S_LOAD_TOPO', 1, (event) => {
-        zone = event.zone;
-    });
+	dispatch.hook('S_CREATURE_CHANGE_HP', 2, event => {
+		if(event.target.equals(cid)) {
+			curHp = event.curHp
+			maxHp = event.maxHp
+		}
+	})
 
-    dispatch.hook('S_CREATURE_CHANGE_HP', 2, (event) => {
-        if (event.target.toString() == cid.toString()) {
-            currHp = event.curHp;
-            maxHp = event.maxHp;
-        }
-    });
+	dispatch.hook('C_PLAYER_LOCATION', 1, event => { location = event })
 
-    dispatch.hook('S_SPAWN_ME', 1, (event) => {});
+	command.add('drop' amount => {
+		amount = Number(amount)
 
-    dispatch.hook('C_PLAYER_LOCATION', 1, (event) => {
-        location = event;
-    });
+		if(amount && curHp && maxHp) {
+			let amountToDrop = (curHp * 100 / maxHp) - amount
 
-    dispatch.hook('C_CHAT', 1, (event) => {
-        if (event.message.includes('!drop')) {
+			if(amount < 100 && amount > 0 && amountToDrop > 0) {
+				if(!castPassive) fallDistance = 400 + (amountToDrop * 10)
+				else fallDistance = 400 + (amountToDrop * 20)
 
-            let amount = parseInt(event.message.replace(/<\/?[^<>]*>/gi, '').split(' ')[1]) || null;
+				location.z1 += fallDistance
 
-            if (amount && currHp && maxHp) {
-                let amountToDrop = (currHp * 100 / maxHp) - amount;
-
-                if (amount < 100 && amount > 0 && amountToDrop > 0) {
-
-                    if (!castPassive)
-                        fallDistance = 400 + (amountToDrop * 10);
-                    else {
-                        fallDistance = 400 + (amountToDrop * 20);
-                    }
-
-                    location.z1 += fallDistance;
-
-                    dispatch.toServer('C_PLAYER_LOCATION', 1, location);
-
-                    dispatch.toClient('S_SPAWN_ME', 1, {
-                        target: cid,
-                        x: location.x1,
-                        y: location.y1,
-                        z: location.z1,
-                        alive: 1,
-                        unk: 0
-                    });
-
-                }
-            }
-
-            return false;
-        }
-    });
-};
+				dispatch.toClient('S_INSTANT_MOVE', 1, {
+					id: cid,
+					x: location.x1,
+					y: location.y1,
+					z: location.z1
+					w: location.w
+				})
+			}
+		}
+	})
+}
