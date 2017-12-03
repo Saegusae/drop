@@ -3,54 +3,52 @@ const Command = require('command')
 module.exports = function Drop(dispatch) {
 	const command = Command(dispatch)
 
-	let cid,
-		model,
-		location,
-		curHp,
-		maxHp,
-		castPassive = false,
-		fallDistance = 0
+	let gameId = -1,
+		isCastanic = false,
+		location = null,
+		locRealTime = 0,
+		curHp = 0,
+		maxHp = 0
 
-	dispatch.hook('S_LOGIN', 2, event => {
-		({cid, model} = event)
-
-		castPassive = ((model - 100) / 200 % 50) === 3
+	dispatch.hook('S_LOGIN', 9, event => {
+		({gameId} = event)
+		isCastanic = Math.floor((event.templateId - 10101) / 200) === 3
 	})
 
-	dispatch.hook('S_PLAYER_STAT_UPDATE', 4, event => {
-		curHp = event.curHp
+	dispatch.hook('S_PLAYER_STAT_UPDATE', 8, event => {
+		curHp = event.hp
 		maxHp = event.maxHp
 	})
 
-	dispatch.hook('S_CREATURE_CHANGE_HP', 2, event => {
-		if(event.target.equals(cid)) {
+	dispatch.hook('S_CREATURE_CHANGE_HP', 6, event => {
+		if(event.target.equals(gameId)) {
 			curHp = event.curHp
 			maxHp = event.maxHp
 		}
 	})
 
-	dispatch.hook('C_PLAYER_LOCATION', 1, event => { location = event })
+	dispatch.hook('C_PLAYER_LOCATION', 2, event => {
+		location = event
+		locRealTime = Date.now()
+	})
 
-	command.add('drop', amount => {
-		amount = Number(amount)
+	command.add('drop', percent => {
+		percent = Number(percent)
 
-		if(amount && curHp && maxHp) {
-			let amountToDrop = (curHp * 100 / maxHp) - amount
+		if(!(percent > 0 && percent <= 100) || !curHp) return
 
-			if(amount < 100 && amount > 0 && amountToDrop > 0) {
-				if(!castPassive) fallDistance = 400 + (amountToDrop * 10)
-				else fallDistance = 400 + (amountToDrop * 20)
+		let percentToDrop = (curHp * 100 / maxHp) - percent
 
-				location.z1 += fallDistance
+		if(percentToDrop <= 0) return
 
-				dispatch.toClient('S_INSTANT_MOVE', 1, {
-					id: cid,
-					x: location.x1,
-					y: location.y1,
-					z: location.z1,
-					w: location.w
-				})
-			}
-		}
+		dispatch.toServer('C_PLAYER_LOCATION', 2, Object.assign({}, location, {
+			z: location.z + 400 + percentToDrop * (isCastanic ? 20 : 10),
+			type: 2,
+			time: location.time - locRealTime + Date.now() - 50
+		}))
+		dispatch.toServer('C_PLAYER_LOCATION', 2, Object.assign(location, {
+			type: 7,
+			time: location.time - locRealTime + Date.now() + 50
+		}))
 	})
 }
